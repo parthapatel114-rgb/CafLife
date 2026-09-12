@@ -38,6 +38,13 @@ export function ProfileForm({
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const put = (key: keyof Profile, v: any) => setP((x) => ({ ...x, [key]: v }));
+  const imperialHeight =
+    p.height === null
+      ? { feet: "", inches: "" }
+      : {
+          feet: String(Math.floor(p.height / 12)),
+          inches: String(Math.round((p.height % 12) * 10) / 10),
+        };
   const numeric = (key: keyof Profile, label: string, hint?: string, min = 0, max?: number) => (
     <Field
       key={key}
@@ -164,7 +171,37 @@ export function ProfileForm({
         />
         <div className="form-grid three">
           {numeric("age", "Age · years", undefined, 0, 120)}
-          {numeric("height", "Height · " + (p.units === "metric" ? "cm" : "in"))}
+          {p.units === "metric" ? (
+            numeric("height", "Height · cm")
+          ) : (
+            <div className="form-grid two" key="height-imperial">
+              <Field
+                label="Height · feet"
+                type="number"
+                min="0"
+                max="8"
+                step="1"
+                value={imperialHeight.feet}
+                onChange={(e) =>
+                  put(
+                    "height",
+                    Number(e.target.value || 0) * 12 + Number(imperialHeight.inches || 0),
+                  )
+                }
+              />
+              <Field
+                label="Height · inches"
+                type="number"
+                min="0"
+                max="11.9"
+                step="0.1"
+                value={imperialHeight.inches}
+                onChange={(e) =>
+                  put("height", Number(imperialHeight.feet || 0) * 12 + Number(e.target.value || 0))
+                }
+              />
+            </div>
+          )}
           {numeric(
             "weight",
             "Weight · " + (p.units === "metric" ? "kg" : "lb"),

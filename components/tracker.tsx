@@ -17,7 +17,6 @@ import {
   Download,
   Upload,
   LogOut,
-  Sun,
   Check,
   Info,
 } from "lucide-react";
@@ -114,7 +113,6 @@ export default function Tracker() {
     } | null>(null),
     [days, setDays] = useState("7"),
     [selectedDate, setSelectedDate] = useState(""),
-    [inspect, setInspect] = useState(localInput(Date.now())),
     [update, setUpdate] = useState<ServiceWorker | null>(null);
   const { records, coffeeRows, favorites, uniqueFavorites, entries } = useMemo(() => {
     const records = t.state.records.filter((row) => !row.deleted);
@@ -168,7 +166,13 @@ export default function Tracker() {
     return () => media.removeEventListener("change", apply);
   }, [p.theme]);
   useEffect(() => {
-    if (t.user && t.ready && !p.onboarded) setModal("profile");
+    if (
+      t.user &&
+      t.ready &&
+      !p.onboarded &&
+      !localStorage.getItem(`caflife-onboarding:${t.user.id}`)
+    )
+      setModal("profile");
   }, [t.user, t.ready, p.onboarded]);
   useEffect(() => {
     if (
@@ -297,6 +301,7 @@ export default function Tracker() {
   const profileId = records.find((r) => r.kind === "profile")?.id;
   const saveProfile = async (value: any) => {
     await t.change("profile", value, profileId);
+    if (t.user) localStorage.setItem(`caflife-onboarding:${t.user.id}`, "complete");
     setMessage(t.demo ? "Sample preferences updated." : "Preferences saved.");
   };
   const downloadBackup = () =>
@@ -647,6 +652,9 @@ export default function Tracker() {
                 </p>
                 <h1>Today</h1>
                 <p>Caffeine levels and targets.</p>
+                <span className="streak-badge today-streak">
+                  <Activity size={15} /> {weekSummary.streak}-day logging streak
+                </span>
               </div>
               <Button className="primary desktop-log" onClick={() => openDrink()}>
                 <Plus />
@@ -794,6 +802,27 @@ export default function Tracker() {
               <section className="card">
                 <h2>Plan a drink</h2>
                 <p className="section-description">This scenario does not change your journal.</p>
+                <div className="quick-preset-row" aria-label="Preset drinks">
+                  {presets
+                    .filter((preset) => preset.id !== "custom")
+                    .map((preset) => (
+                      <button
+                        type="button"
+                        key={preset.id}
+                        onClick={() =>
+                          setScenario({
+                            ...scenario,
+                            ...preset,
+                            quantity: 1,
+                            at: scenario.at,
+                            preset: preset.id,
+                          })
+                        }
+                      >
+                        {preset.name}
+                      </button>
+                    ))}
+                </div>
                 <div className="form-stack">{drinkFields(scenario, setScenario, true)}</div>
                 <div className="scenario-dose">
                   <span>Planned caffeine</span>
@@ -934,7 +963,7 @@ export default function Tracker() {
                   <h2>What changed</h2>
                 </div>
                 <span className="streak-badge">
-                  <Sun size={15} /> {weekSummary.streak} day
+                  <Activity size={15} /> Current streak: {weekSummary.streak} day
                   {weekSummary.streak === 1 ? "" : "s"}
                 </span>
               </div>
@@ -1045,28 +1074,6 @@ export default function Tracker() {
                   />
                 </div>
                 {journal(selectedDate || today)}
-              </section>
-              <section className="card">
-                <p className="eyebrow">CHECK A TIME</p>
-                <h2>Inspect an estimate</h2>
-                <div className="form-stack">
-                  <Field
-                    label="Date & time on your phone"
-                    type="datetime-local"
-                    value={inspect}
-                    onChange={(e) => setInspect(e.target.value)}
-                  />
-                  <h2 className="metric">
-                    {Number.isFinite(Date.parse(inspect))
-                      ? Math.round(amountAt(entries, Date.parse(inspect), p.halfLife))
-                      : "—"}{" "}
-                    <small>mg estimated</small>
-                  </h2>
-                  <p className="small">
-                    Historical estimates are recalculated with your current {p.halfLife}-hour
-                    half-life.
-                  </p>
-                </div>
               </section>
             </div>
           </TabsContent>
@@ -1347,7 +1354,7 @@ export default function Tracker() {
                               setDrink({
                                 ...drink,
                                 ...(r.data as Favorite),
-                                preset: undefined,
+                                preset: "favorite",
                               })
                             }
                           >
